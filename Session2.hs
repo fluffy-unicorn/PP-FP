@@ -86,7 +86,7 @@ swapAgeAndName (b,a,c,d) = (a,b,c,d)
 --Exercise 3
 --a
 sieve :: [Int] -> [Int]
-sieve (x:xs) = x : [n | n <- sieve xs, n `rem` x > 0]
+sieve (x:xs) = x : [n | n <- sieve xs, n `mod` x /= 0]
 
 --1
 prime :: Int -> Bool
@@ -130,7 +130,7 @@ avg :: (Fractional a, Ord a) => [a] -> a
 avg [] = 0
 avg [x] = x
 avg (x:xs) = (x + (avg xs * xsLength)) / (xsLength + 1)
-             where xsLength = fromIntegral(length xs)
+             where xsLength = length xs
  
 weakIncr :: (Fractional t, Ord t) => [t] -> Bool
 weakIncr [] = True
@@ -138,12 +138,6 @@ weakIncr [x] = True
 weakIncr xs = (avg (init xs) < last xs) && (weakIncr $ init xs)
 
 --Exercise 6
-sublist :: Ord t => [t] -> [t] -> Bool
-sublist [] ys = True
-sublist xs [] = False
-sublist (x:xs) (y:ys) = (x == y && sublist xs ys) || sublist (x:xs) ys
--- TODO
-
 partSL :: Ord t => [t] -> [t] -> Bool
 partSL [] ys = True
 partSL xs [] = False
@@ -159,8 +153,8 @@ bubble (x:x':xs) = [min x x'] ++ bubble ((max x x'):xs)
 bsort :: Ord t => [t] -> [t]
 bsort [] = []
 bsort [x] = [x]
-bsort xs = bsort (init xs) ++ [last $ bubble xs]
--- TODO optimization
+bsort xs = bsort (xs \\ [lastElem]) ++ [lastElem]
+           where lastElem = last $ bubble xs
 --b
 minlist :: Ord t => [t] -> t
 minlist [x] = x
