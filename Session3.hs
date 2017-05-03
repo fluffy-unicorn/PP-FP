@@ -137,5 +137,30 @@ subtree (Node1a _ t1 t2) (c:cs) | c == 'l' = subtree t1 cs
                                 | c == 'r' = subtree t2 cs
                                 | otherwise = error "Path Contains Bad Character"
 
+--8a
+depth :: Tree4 -> Int
+depth Leaf4 = 0
+depth (Node4 _ t1 t2) = 1 + max (depth t1) (depth t2)
 
- 
+isBalanced :: Tree4 -> Bool
+isBalanced Leaf4 = True
+isBalanced (Node4 _ t1 t2) = abs (depth t1 - depth t2) <= 1
+
+--b
+balance :: Tree4 -> Tree4
+balance Leaf4 = Leaf4
+balance t = makeTree $ balanceList $ makeList t
+
+balanceList :: [Int] -> [Int]
+balanceList [] = []
+balanceList [x] = [x]
+balanceList xs = [b] ++ balanceList a ++ balanceList c
+                 where (a,b,c) = splitList xs
+
+splitList :: [Int] -> ([Int],Int,[Int])
+splitList xs = (fst halves, head $ snd halves, tail $ snd halves)
+               where halves = splitAt (length xs `div` 2) xs
+
+--c
+balanceTest :: [Int] -> Bool
+balanceTest xs = isBalanced $ balance $ makeTree xs
