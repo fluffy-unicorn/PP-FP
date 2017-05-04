@@ -1,5 +1,6 @@
 module Session4 where
 import FPPrac.Trees
+import Data.List
 --1a
 data BinTree a b = Leaf b | Node a (BinTree a b ) (BinTree a b)
 
@@ -19,18 +20,29 @@ pp (Node x t1 t2) = RoseNode (show x) [pp t1, pp t2]
 
 --2a
 isDigit :: Char -> Bool
-isDigit x = x `elem` "0123456789"
+isDigit x = x `elem` ['0'..'9']
 
-isOp :: Char -> Bool
-isOp x = x `elem` "+-*/^"
+isAlpha :: Char -> Bool
+isAlpha x = x `elem` ['A'..'z'] \\ ['['..'`']
 
-data NT = Ints | Expr | Op
+parse :: String -> ((BinTree Char Int), String)
+parse [] = (Leaf 0,[])
+parse (x:xs) | isDigit x = (Leaf (read [x]::Int), xs)
+             | x == '('  = ((Node op (t0) (t1)), tail r2) 
+             where
+               (t0, r0) = parse xs
+               (op, r1) = (head r0, tail r0)
+               (t1, r2) = parse r1
 
-parse :: NT -> String -> ((BinTree a b), String)
-parse Ints (x:xs) = (Leaf (read x), xs)
-parse Op   (x:xs) = (Leaf x, xs) 
-parse Expr (x:xs) | x == '(' = ((Node  
-                  where
-                    (t0, r0) = parse Expr xs
-                    (op, r1) = parse Op r0
-                    (t1, r2) = parse Expr r1
+parseTest = showRoseTree $ pp $ fst $ parse "((6*((2^8)-(3/2)))+3)"
+
+--b
+parse' :: String -> ((BinTree Char (Either Int Char)), String)
+parse' [] = (Leaf (Left 0), [])
+parse' (x:xs) | isDigit x = (Leaf (Left (read[x]::Int)), xs)
+              | isAlpha x = (Leaf (Right x), xs)
+              | x == '('  = ((Node op (t0) (t1)), tail r2) 
+              where
+               (t0, r0) = parse' xs
+               (op, r1) = (head r0, tail r0)
+               (t1, r2) = parse' r1
