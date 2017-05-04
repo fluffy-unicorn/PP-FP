@@ -77,6 +77,8 @@ binMirror' (Node1d ts) = Node1d (map binMirror' (reverse ts))
 
 --4
 data Tree4 = Leaf4 | Node4 Int Tree4 Tree4 deriving (Eq, Show)
+pp4 Leaf4 = RoseNode "" []
+pp4 (Node4 i t1 t2) = RoseNode (show i) [pp4 t1, pp4 t2]
 --a
 insertTree :: Tree4 -> Int -> Tree4
 insertTree Leaf4 n = Node4 n Leaf4 Leaf4

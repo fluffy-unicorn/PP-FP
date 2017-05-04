@@ -18,10 +18,19 @@ pp (Leaf x) = RoseNode (show x) []
 pp (Node x t1 t2) = RoseNode (show x) [pp t1, pp t2]
 
 --2a
+isDigit :: Char -> Bool
+isDigit x = x `elem` "0123456789"
 
-expr :: String -> BinTree a b
-expr [] = Leaf Unit
-expr [x] = Node (read [x]::Int) (Leaf Unit) (Leaf Unit)
-expr (x:xs)     | x `elem` "0123456789" = Node (head xs) (Leaf (read [x]::Int)) (expr (tail xs))
-                | x == '(' =  Node (xs!!1) (expr [xs!!2]) (expr xs)
-                | otherwise = error "Unknown character"
+isOp :: Char -> Bool
+isOp x = x `elem` "+-*/^"
+
+data NT = Ints | Expr | Op
+
+parse :: NT -> String -> ((BinTree a b), String)
+parse Ints (x:xs) = (Leaf (read x), xs)
+parse Op   (x:xs) = (Leaf x, xs) 
+parse Expr (x:xs) | x == '(' = ((Node  
+                  where
+                    (t0, r0) = parse Expr xs
+                    (op, r1) = parse Op r0
+                    (t1, r2) = parse Expr r1
