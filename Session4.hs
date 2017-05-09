@@ -131,10 +131,10 @@ parse'' (y:ys) | isDigit x || x == '~' = (convert y, ys)
 
 parseTest'' = showRoseTree $ pp $ fst $ parse'' $ tokenizer "(((( a + b ) * (3.0^(22/11))) - abc) - ((1223//1000) * 100))"
 
-lookUp :: String -> Double
-lookUp "a" = 0.2
-lookUp "b" = 20.8
-lookUp "abc" = 10.0
+valueOf :: String -> Double
+valueOf "a" = 0.2
+valueOf "b" = 20.8
+valueOf "abc" = 10.0
 
 getFunction :: String -> (Double -> Double -> Double)
 getFunction "*" = (*)
@@ -144,13 +144,14 @@ getFunction "-" = (-)
 getFunction "/" = (/)
 getFunction "//"= (\x y -> fromIntegral(round(x/y)))
 
-eval :: String -> Double
-eval xs = eval' $ fst $ parse'' $ tokenizer xs
-eval' :: BinTree String (Either (Either Double Int) String) -> Double
-eval' (Leaf (Left (Left  a))) = a
-eval' (Leaf (Left (Right a))) = fromIntegral(a)
-eval' (Leaf (Right a))        = lookUp a
-eval' (Node op t1 t2)         = f (eval' t1) (eval' t2)
+eval :: String -> (String -> Double) -> Double
+eval xs t = eval' (fst $ parse'' $ tokenizer xs) t
+
+eval' :: BinTree String (Either (Either Double Int) String) -> (String -> Double) -> Double
+eval' (Leaf (Left (Left  a))) _ = a
+eval' (Leaf (Left (Right a))) _ = fromIntegral(a)
+eval' (Leaf (Right a))        t = t a
+eval' (Node op t1 t2)         t = f (eval' t1 t) (eval' t2 t)
                                 where f = getFunction op
 
-evalTest = eval "(((( a + b ) * (3.0^(22/11))) - abc) - ((1223//1000) * 100))"
+evalTest = eval "(((( a + b ) * (3.0^(22/11))) - abc) - ((1223//1000) * 100))" valueOf
