@@ -45,7 +45,9 @@ data EStat    = Assign EVar EExpr
 data ElsePart = Else [EStat]  deriving Show
 data EExpr    = BinExpr Op EExpr EExpr
               | Load EVar
-              | Const Int  deriving Show
+              | ConstInt Int  
+              | ConstReal Double 
+                deriving Show
 
 lut :: String -> Int
 lut "sum" = 0
@@ -60,6 +62,12 @@ toOp ">" = Greater
 toOp "<="= LE
 toOp ">="= GE
 toOp "=="= Equal
+
+convert :: String -> EExpr
+convert (x:xs) | x == '~' && '.' `elem` (x:xs) = ConstReal ((negate $ read (xs))::Double)
+               | x == '~' = ConstInt ((negate $ read (xs))::Int)
+               | '.' `elem` (x:xs) = ConstReal ((read (x:xs))::Double)
+               | otherwise = ConstInt ((read (x:xs))::Int)
 
 transform :: ParseTree -> [EStat]
 transform (PNode Program ss) = (map transformStats ss)
@@ -76,7 +84,7 @@ transformBlock (PNode Block xs) = map transformStats xs
 
 transformExpr :: ParseTree -> EExpr
 transformExpr (PNode Expr (e:[])) = transformExpr e
-transformExpr (PLeaf (Number, str)) = Const (read str::Int)
+transformExpr (PLeaf (Number, str)) = convert str
 transformExpr (PLeaf (Variable, str)) = Load str
 transformExpr (PNode ArExpr (e1:aop:e2:[])) = case aop of
                                           PLeaf (ArOp, op) -> BinExpr (toOp op) (transformExpr e1) (transformExpr e2)
@@ -84,14 +92,25 @@ transformExpr (PNode CompExpr (e1:aop:e2:[])) = case aop of
                                                   PLeaf (CompOp, op) -> BinExpr (toOp op) (transformExpr e1) (transformExpr e2)
 transformExpr (PNode SimExpr (e:[])) = transformExpr e
 
-
+--Exercise 4b
+{-
+The extra instruction are compare and various jump instructions.
+The compare instruction will compare two values from the stack
+and either sets a tuple with flags (which has to be returned
+together with stack/heap etc.) or will set a value on the stack
+that represents the flags in binary (with each bit representing a
+flag). For instance: 110b = Lesser and Equal and 001b is Greater.
+The jump instruction takes a value from the stack and either sets 
+the PC to that value when the appropriate flag is set or increments
+the PC when the flag is not set. 
+-}
 
 -- == Tests ==
 testPrpr p = prpr $ parse grammar Program $ tokenizer p
 testGr   p = showRoseTree $ toRoseTree $ parse grammar Program $ tokenizer p
 testTrf  p = transform $ parse grammar Program $ tokenizer p
-prog1 = "i=0 loop 10 i=(i+1) i=(i+2) "
-prog2 = "i = 0 if (i > 0) { if (i<=0) i = (i-1) } else i=10"
+prog1 = "i=0 loop 10 i=(i+1.5) i=(i+2.5) "
+prog2 = "i = 0 if (i > ~3) { if (i<=0) i = (i+~1) } else i=10"
 prog3 = "sum=0i=0loop 10 {i=(i+1)sum=(sum+i)}"
 
 test11 = testPrpr prog1
