@@ -2,22 +2,26 @@ data Expr = Const Int
           | Var String
           | BinOp String Expr Expr
           | App Expr Expr
-          | If CExpr Expr ElsePart
-
-data CExpr = Or Expr Expr
-           | And Expr Expr
+          | If Expr Expr ElsePart
+          | ConstB BoolD
+          | Tuple2 Expr Expr
+          | Tuple3 Expr Expr Expr
+          | Lambda String Type Expr
 
 data ElsePart = Else Expr
 
 data Type = IntType
           | FunType Type Type
           | BoolType
+          | Tuple2Type Type Type
+          | Tuple3Type Type Type Type
            deriving (Show,Eq)
 
+data BoolD = BTrue | BFalse
 type Env = [(String, Type)]
 
 
-env = [("x",IntType),("y", IntType), ("+", FunType IntType (FunType IntType IntType)),("*", FunType IntType (FunType IntType IntType)),("-", FunType IntType (FunType IntType IntType)), ("&&", BoolType), ("||", BoolType)]
+env = [("x",IntType),("y", IntType), ("+", FunType IntType (FunType IntType IntType)),("*", FunType IntType (FunType IntType IntType)),("-", FunType IntType (FunType IntType IntType)), ("&&", FunType BoolType (FunType BoolType BoolType)), ("||",  FunType BoolType (FunType BoolType BoolType))]
 
 typeOf :: Env -> Expr -> Type
 typeOf _ (Const _) = IntType
@@ -42,5 +46,12 @@ typeOf env (App f x) = case t_f of
                        where 
                         t_f = typeOf env f
                         t_x = typeOf env x
-typeOf env (If cexpr e0 (ElsePart e1)) = BoolType
+typeOf env (If e0 e1 (Else e2)) | typeOf env e0 /= BoolType      = error "If-Then-Else condition is not of type bool"
+                                | t1            /= typeOf env e2 = error "If- and Else-types are not the same"
+                                | otherwise                      = t1
+                               where t1 = typeOf env e1                        
+typeOf env (ConstB b) = BoolType
+typeOf env (Tuple2 e0 e1) = Tuple2Type (typeOf env e0) (typeOf env e1)
+typeOf env (Tuple3 e0 e1 e2) = Tuple3Type (typeOf env e0) (typeOf env e1) (typeOf env e2)
+typeOf env (Lambda _ a expr) = FunType a t where t = typeOf env expr 
 
