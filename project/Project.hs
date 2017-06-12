@@ -53,9 +53,14 @@ matches prog a | result == [] = Nothing
 
 -- Rename an atom
 rename :: Atom -> Atom
-rename (P p (C a)) = (P p (C a))
-rename (P p (V x)) = (P p (V ('_':x)))
+rename (P p x) = P p $ renameTerm x
+rename (PMult p xs) = PMult p $ map renameTerm xs 
 rename a = a
+
+-- Rename a term
+renameTerm :: Term -> Term
+renameTerm (C a) = C a
+renameTerm (V v) = V ('_':v)
 
 -- Get the substitution associated with the given atoms
 unify :: Atom -> Atom -> Maybe Substitution
@@ -71,12 +76,11 @@ unify _ _ = Nothing
 -- 'Beautify' the solution given by evalOne
 beautify :: Solution -> (Bool, [String])
 beautify (q, s) | q /= [] = (False, [])
-                | otherwise = (True, nub $ map (showSubstitution.fromJust) $ filter beautifyFilter s)
+                | otherwise = (True, nub $ map (showSubstitution) $ filter beautifyFilter s)
 
 -- Filter used by the beautify function
-beautifyFilter :: Maybe Substitution -> Bool
-beautifyFilter Nothing = False
-beautifyFilter (Just (V _, C _)) = False
+beautifyFilter :: Substitution -> Bool
+beautifyFilter (V _, C _) = False
 beautifyFilter _ = True
 
 -- String representation of a substitution
@@ -87,36 +91,35 @@ showSubstitution (V v, C a) = show a ++ " = " ++ v
 
 -- Evaluate function for level 2
 evalOne :: Program -> Query -> (Bool, [String])
-evalOne p q = beautify $ evalOne' p (q, [Nothing])
+evalOne p q = beautify $ evalOne' p (q, [])
 
 -- Recursive function for evalOne and evalMult
 evalOne' :: Program -> Solution -> Solution
 evalOne' p ([], sub) = ([], sub)
 evalOne' p ((q:query),sub) | result == (q:query) = ((q:query), sub)
-                           | otherwise = evalOne' p (result, sub ++ (subAs `intersectOrUnion` subRF))
+                           | otherwise = evalOne' p (result, sub ++ (subAs `intersectOrUnion` subR))
                             where result = atomResults ++ restResult
                                   evalAtomResults = evalAtom p q
                                   atomResults = foldl1 (++) $ map fst evalAtomResults
-                                  subAs = filter (/=Nothing) $ foldl1 (++) $ map snd evalAtomResults
+                                  subAs = foldl1 (++) $ map snd evalAtomResults
                                   (restResult,subR) = evalOne' p (query, sub)
-                                  subRF = filter (/=Nothing) subR
 
 -- Evaluate a single atom
 evalAtom :: Program -> Atom -> [Solution]
-evalAtom p (P pr x)     | matchResult == Nothing = [([P pr x], [Nothing])]
+evalAtom p (P pr x)     | matchResult == Nothing = [([P pr x], [])]
                         | otherwise = (map (unifyAndEval p (P pr x)) $ fromJust matchResult) 
                          where matchResult = matches p (P pr x) 
-evalAtom p (PMult pr x)  | matchResult == Nothing = [([PMult pr x], [Nothing])]
+evalAtom p (PMult pr x)  | matchResult == Nothing = [([PMult pr x], [])]
                          | otherwise = (map (unifyAndEvalMult p (PMult pr x)) $ fromJust matchResult) 
                            where matchResult = matches p (PMult pr x) 
-evalAtom p a = [(evalProp' p [a], [Nothing])]
+evalAtom p a = [(evalProp' p [a], [])]
 
 -- Unify and evaluate an atom with a given clause
 unifyAndEval :: Program -> Atom -> Clause -> Solution
 unifyAndEval p atom c = case unification of
-                          Nothing -> evalOne' p (snd c, [Nothing])
-                          Just (V _, _) -> evalOne' p (substitution, [Nothing])
-                          _             -> evalOne' p (substitution, [unification])
+                          Nothing -> evalOne' p (snd c, [])
+                          Just (V _, _) -> evalOne' p (substitution, [])
+                          _             -> evalOne' p (substitution, [fromJust unification])
                         where unification = unify atom $ fst c
                               substitution= [ a ⇐ fromJust unification | a <- snd c ]
 
@@ -133,10 +136,16 @@ unifyMult (PMult p (x:xs)) (PMult q (y:ys)) | p /= q = [Nothing]
 -- Correct the generated list for instances as p(X,X) = p(a,Y)
 correct :: [Maybe Substitution] -> [Maybe Substitution]
 correct x = vc ++ vv ++ correctedList
-            where (vc, vv) = partition isVarToConst $ filter (/=Nothing) x
-                  result = [ correctSub v vc | v <- vv ]
-                  correctedList | result == [] = []
-                                | otherwise = foldl1 (++) result
+          where (vc, vv) = partition correctFilter $ filter (/=Nothing) x
+                result = [ correctSub v vc | v <- vv ]
+                correctedList | result == [] = []
+                              | otherwise = foldl1 (++) result
+
+-- Filter for correct function
+correctFilter :: Maybe Substitution -> Bool
+correctFilter (Just (V _, V _)) = False
+correctFilter Nothing = False
+correctFilter _ = True
 
 -- Return a list of new substitutions with a given Var-to-Var-substition and a list of Var-to-Constant-substition
 correctSub :: Maybe Substitution -> [Maybe Substitution] -> [Maybe Substitution]
@@ -148,30 +157,28 @@ correctSub (Just (V v, V w)) (x:xs) | V v == fst fjx = [Just (snd fjx, V w)] ++ 
 
 -- Evaluate function for level 3
 evalMult :: Program -> Query -> (Bool, [String])
-evalMult p q = beautify $ evalOne' p (q, [Nothing])
+evalMult p q = beautify $ evalOne' p (q, [])
 
 -- Unify and evaluate an atom with a given clause (for level 3)
 unifyAndEvalMult :: Program -> Atom -> Clause -> Solution
 unifyAndEvalMult p atom c = case unification of
-                          [Nothing] -> evalOne' p (snd c, [])
-                          _         -> evalOne' p (substitution, unification)
-                        where unification = unifyMult atom $ fst c
-                              substitution = [ foldl (⇐) a $ map fromJust unification | a <- snd c ]
+                          [] -> evalOne' p (snd c, [])
+                          _  -> evalOne' p (substitution, unification)
+                        where unification = map fromJust $ filter (/= Nothing) $ unifyMult atom $ fst c
+                              substitution = [ foldl (⇐) a unification | a <- snd c ]
 {--
     Dictionary implementation
 --}
 -- Convert a list to an dictionary
-listToDict :: [Maybe Substitution] -> Dictionary -> Dictionary
+listToDict :: [Substitution] -> Dictionary -> Dictionary
 listToDict [] dict = dict
-listToDict (a:as) dict | a == Nothing = listToDict as dict
-                       | otherwise = listToDict' (a:as) dict
+listToDict (a:as) dict = listToDict' (a:as) dict
 
 -- Recursive function for listToDict
-listToDict' :: [Maybe Substitution] -> Dictionary -> Dictionary
-listToDict' (a:as) dict = case lookup (snd fja) dict of
-                           Nothing -> listToDict as (dict ++ [(snd fja, [fst fja])])
-                           Just lst -> listToDict as (addIntoDict dict (snd fja) (lst ++ [fst fja]))
-                          where fja = fromJust a
+listToDict' :: [Substitution] -> Dictionary -> Dictionary
+listToDict' (a:as) dict = case lookup (snd a) dict of
+                           Nothing -> listToDict as (dict ++ [(snd a, [fst a])])
+                           Just lst -> listToDict as (addIntoDict dict (snd a) (lst ++ [fst a]))
 
 -- Add a value into the dictionary, replacing an existing value
 addIntoDict :: Dictionary -> Term -> [Term] -> Dictionary
@@ -196,23 +203,22 @@ intersectDict (a:as) bs cs | any (==key) $ map fst bs = intersectDict as bs (cs 
                            where key = fst a
 
 -- Convert a dictionary to a list
-dictToList :: Dictionary -> [Maybe Substitution]
+dictToList :: Dictionary -> [Substitution]
 dictToList [] = []
-dictToList (d:dict) = [ Just (b, fst d) | b <- snd d ] ++ dictToList dict
+dictToList (d:dict) = [ (b, fst d) | b <- snd d ] ++ dictToList dict
 
 -- Function that calculates the intersection of substitions
 -- This intersection is on a variable basis, so intersectOrUnion {V=a, V=b} {V=b} yields {V=b}
 -- whereas intersectOrUnion {V=a} {W=b} yields {V=a, W=b} 
-intersectOrUnion :: [Maybe Substitution] -> [Maybe Substitution] -> [Maybe Substitution]
+intersectOrUnion :: [Substitution] -> [Substitution] -> [Substitution]
 intersectOrUnion as bs = dictToList $ intersectDict aDict bDict []
                        where
                          aDict = listToDict (filter isVarToConst as) []
                          bDict = listToDict (filter isVarToConst bs) []
 
 -- Filter for intersectOrUnion
-isVarToConst :: Maybe Substitution -> Bool
-isVarToConst (Just (V _, V _)) = False
-isVarToConst Nothing = False
+isVarToConst :: Substitution -> Bool
+isVarToConst (V _, V _) = False
 isVarToConst _ = True
 
 {--

@@ -11,7 +11,7 @@ type Substitution = (Term, Term)
 type Clause = (Atom, [Atom])
 type Program = [Clause]
 type Query = [Atom]
-type Solution = (Query, [Maybe Substitution])
+type Solution = (Query, [Substitution])
 type Dictionary = [(Term, [Term])]
 
 -- Class and instance declarations for the substitute operator
