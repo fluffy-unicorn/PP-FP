@@ -1,0 +1,11 @@
+The file DataModel.hs contains all the algebraic data types, type definitions, operators and the program for testing.
+
+The file Project.hs contains contains the actual implementation of evalProp, evalOne and evalMult for Prolog programs with resp. zero, one, or more variables.
+
+The function evalProp searches just for the query in the program and replaces each atom with a match until no atoms are left. When a property is not defined in the program, it is replaced with itself (i.e. unchanged).
+
+The function evalOne uses the function matches to find matching clauses in the program, and unify for getting the appropriate substitution. Then, all atoms in the query are evaluated one by one and the resulting solutions are then intersected with each other. This intersection is done using a data structure similar to a dictionary. It is a list of tuples consisting of a key and a list of values. The key is the variable to be substituted and the list is the list of constants and variables that can be substituted to. Using the function intersectOrUnion the total set of substitutions is calculated. For instance when one atom returns the substitutions {X=a, X=b, X=c}, the second atom returns {X=a, X=b} and the last atom returns {Y=p}, the resulting substitution for the complete query is {X=a, X=b, Y=p}.
+
+The function evalMult is similar to that of the evalOne, but uses a different unify. The function unifyMult gives the possible substitutions for a set of variables, the function correct is then called in order to correct issues like for instance the unification of p(X,X) and p(a,Y).
+
+At the end several test instances are created, the expected result are commented next to the instances.

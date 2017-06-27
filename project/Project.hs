@@ -1,8 +1,8 @@
 module Project where
 import Data.Maybe
 import Data.List
+import Data.Char
 import DataModel
-import Debug.Trace
 
 {--
     Level 1
@@ -85,9 +85,9 @@ beautifyFilter _ = True
 
 -- String representation of a substitution
 showSubstitution :: Substitution -> String
-showSubstitution (C a, V v) = v ++ " = " ++ show a
+showSubstitution (C a, V v) = v ++ " = " ++ (map toLower $ show a)
 showSubstitution (V v, V w) = v ++ " = " ++ w
-showSubstitution (V v, C a) = show a ++ " = " ++ v
+showSubstitution (V v, C a) = map toLower $ show a ++ " = " ++ v
 
 -- Evaluate function for level 2
 evalOne :: Program -> Query -> (Bool, [String])
@@ -234,37 +234,23 @@ testProp1 = testProp [C0] -- True
 testProp2 = testProp [C1] -- False
 
 -- Level 2
-testOne1  = testOne [P "q" (C A)]     -- True
-testOne2  = testOne [P "q" (C C_)]    -- False
-testOne3  = testOne [P "q" (V "Z")]   -- True (Z = a, Z = b)
-testOne4  = testOne [P "r" (C A)]     -- True
-testOne5  = testOne [P "r" (C C_)]    -- False
-testOne6  = testOne [P "r" (V "Z")]   -- True (Z = a, Z = b)
+testOne1  = testOne [P "q" (C E)]     -- True
+testOne2  = testOne [P "q" (C G)]     -- False
+testOne3  = testOne [P "q" (V "Z")]   -- True (Z = e, Z = f)
+testOne4  = testOne [P "r" (C E)]     -- True
+testOne5  = testOne [P "r" (C G)]     -- False
+testOne6  = testOne [P "r" (V "Z")]   -- True (Z = e, Z = f)
 testOne7  = testOne [P "r" (C D)]     -- False
 testOneProp1 = testOne [C0]           -- True
 testOneProp2 = testOne [C1]           -- False
 
 -- Level 3
-testMult1 = testMult [PMult "s" [V "X", V "Y"]] -- True (X = a, Y = b)
-testMult2 = testMult [PMult "t" [V "X", V "Y"]] -- True (X = a, X = b, X = c, Y = b)
-testMult3 = testMult [PMult "v" [C A, V "Y"]]   -- True (Y = a)
-testMultOne1 = testMult [P "r" (V "Z")]         -- True (Z = a, Z = b)
+testMult1 = testMult [PMult "s" [V "X", V "Y"]] -- True (X = e, Y = f)
+testMult2 = testMult [PMult "t" [V "X", V "Y"]] -- True (X = e, X = f, X = g, Y = f)
+testMult3 = testMult [PMult "v" [C E, V "Y"]]   -- True (Y = e)
+testMultOne1 = testMult [P "r" (V "Z")]         -- True (Z = e, Z = f)
 testMultProp1= testMult [C0]                    -- True
 
 testProps = printTest [testProp1, testProp2]
 testOnes  = printTest [testOne1, testOne2, testOne3, testOne4, testOne5, testOne6, testOne7, testOneProp1, testOneProp2 ]
 testMults = printTest [testMult1, testMult2, testMult3, testMultOne1, testMultProp1 ]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
